@@ -1,0 +1,210 @@
+---
+title: "Midterm"
+author: "Ruowen Wang"
+date: "10/8/2020"
+output: html_document
+---
+
+### Introduction:
+
+1. Question: I am trying to find the association between the social distance index with the incidence rate of COVID-19. To check whether keeping social distance is an effective way to slow down the spread of COVID-19.
+
+2. Explanation: The social distance index is an integer from 0~100 that represents the extent residents and visitors are practicing social distancing. "0" indicates no social distancing is observed in the community, while "100" indicates all residents are staying at home and no visitors are entering the county.Calculated by MTI.
+
+### Methods:
+
+1. Data source:
+Social distance index: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/ZAKKCE
+Total US confirmed cases: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/HIDLTK
+
+2. I find out the number of columns and rows of both data set. Then I delete the extra columns and rows, focus on the same period.
+
+### Preliminary Results: 
+
+Please see Step 4.
+
+### Code:
+
+```{r}
+library(data.table)
+library(leaflet)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(usmap)
+library(scales)
+library(RColorBrewer)
+```
+
+### Step1: Read in data.
+
+```{r}
+sdi <- data.table::fread("/Users/christina/Desktop/Social distancing index_ST.csv")
+totcases <- data.table::fread("/Users/christina/Desktop/us_state_confirmed_case.csv")
+```
+
+### Step2: Check the dimensions, headers, footers, and the trend of the social distance.
+
+- For the sake of presentation friendliness, we only show 8 lines for the first and last part of the data.
+- For the trends plot, I only show the four states for 50 days. They have very similar fluctuating trends in social distancing.
+- There are 51 rows and 275 columns in the social distance index data set. 
+- The date is updated from Jan/01/2020 to Sep/28/2020.
+
+```{r}
+dim(sdi)
+head(sdi[,1:8])
+tail(sdi[,268:275])
+```
+
+```{r}
+library(ggplot2)
+library(scales)
+data1 = t(as.matrix(sdi[,3:275]))
+date = colnames(sdi)[4:275]
+rownames(data1) <- NULL
+colnames(data1) = data1[1,]
+data1 = as.data.frame(data1)[2:273,]
+data1$date = as.Date(date,format ("%m/%d/%Y"))
+data1 = data1[1:50,]
+ggplot(data1, aes(x=date)) + geom_line(aes(y=Alabama,group = 1),color="red")+ geom_line(aes(y=Alaska,group = 1),color="green")+geom_line(aes(y=Arizona,group = 1),color="orange")+geom_line(aes(y=Arkansas,group = 1),color="blue") +scale_y_discrete('Social distance')+scale_x_date(labels=date_format("%Y-%m"))
+```
+
+- For the sake of presentation friendliness, I only show 15 lines for the first and the last part.
+- For the total US confirmed cases, I only show the same four states above for 10 days. We also can see the same trend in these four countries, but Alaska have little confirmed case.
+- There are 51 rows and 272 columns in the total US confirmed cases data set. 
+- The date is updated from Jan/21/2020 to Oct/06/2020.
+
+```{r}
+dim(totcases)
+head(totcases[,1:15])
+tail(totcases[,258:272])
+```
+
+### Step3: Delete the extra columns. I want to see the data of the same period in both data set. So I keep the period from Jan/21/2020 to Sep/28/2020.
+
+```{r}
+sdi1<- sdi[ ,-c(4:23)]
+sdi1<- sdi1[ ,-c(1)]
+totcases1<- totcases[ ,-c(265:272)]
+totcases1<- totcases1[ ,-c(3:12)]
+dim(sdi1)
+dim(totcases1)
+```
+
+```{r}
+library(RColorBrewer)
+library(scales)
+coll = brewer.pal(n = 15, name = "RdBu")
+data2 = t(as.matrix(totcases[,1:272]))
+date = colnames(totcases)[13:272]
+rownames(data2) <- NULL
+colnames(data2) = data2[2,]
+data2 = as.data.frame(data2)[13:272,]
+data2$date = as.Date(date)
+data2 = data2[51:60,]
+ggplot(data2, aes(x=date)) + geom_line(aes(y=Alabama,group = 1),color=coll[1])+ geom_line(aes(y=Alaska,group = 1),color=coll[2])+geom_line(aes(y=Arizona,group = 1),color=coll[4])+geom_line(aes(y=Arkansas,group = 1),color=coll[9]) +scale_y_discrete('Total US confirmed cases')+scale_x_date(labels=date_format("%Y-%m-%d"))
+```
+
+### Step4: Get the statistic about the dataframe sid1.
+
+```{r}
+sdi11 = data.frame(t(as.matrix(sdi1)))
+sdi11 = sdi11[3:254,]
+colnames(sdi11) = sdi1$NAME
+newdata = sdi11
+rownames(newdata) <- NULL
+for (i in 1:51){
+   newdata[,i] = as.numeric(as.character(newdata[,i]))
+}
+a = summary(newdata)
+a
+```
+
+- I also to bulid the kable format table for the mean information of the first 6 states:"Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado".
+
+```{r}
+library(knitr)
+a.frame = structure(c('mean',26.83,20.82,33.46,25.37,38.9,31.32), .Dim = c(1L, 7L), .Dimnames = list(NULL, c("statistic information","Alabama","Alaska","Arizona","Arkansas","California","Colorado")))
+kable(a.frame)
+```
+
+
+- We can see the range of social distance doesn't fluctuate much in these states.
+
+### Step5: Check the missing values in both data set.
+
+```{r}
+sum(is.na(sdi1))
+sum(is.na(totcases1))
+```
+
+### Step6: Draw the barchart of total US confirmed cases on Sep/28/2020.
+
+```{r}
+library(ggplot2)
+tot0928<-totcases1[ ,c(2,254)]
+ggplot(tot0928,aes(x=NAME, y=`2020-09-28`, fill=NAME))+geom_bar(stat = 'identity')
+```
+
+### Step7: Find which states have the total confirmed cases on Sep/28/2020 which are over 200,000.
+
+```{r}
+tot0928a<-tot0928[`2020-09-28`>200000,]
+tot0928a$NAME<-reorder(tot0928a$NAME, -tot0928a$`2020-09-28`)
+ggplot(tot0928a,aes(x=NAME, y=`2020-09-28`, fill=NAME))+geom_bar(stat = 'identity')
+```
+
+### Step8: Compare the social distance index with the total confirmed cases in the states which are over 200,000.
+
+```{r}
+sdistate = sdi1[c(3,5,10,11,14,31,33,34,44),2]
+sdistate1 = sdi1[c(3,5,10,11,14,31,33,34,44),3:254]
+sdistatez = sdistate
+meandis = apply(sdistate1,1,mean)
+sdistatez$name = sdistate
+sdistatez$meandis = meandis
+total = tot0928a$`2020-09-28`
+sdistatez$total = total
+
+par(mar = c(5, 5, 3, 4)+0.1) 
+bar = barplot(sdistatez$total,ylab="total",
+col="orange",col.axis="orange",col.lab="orange")
+mtext(sdistatez$name,side=1,line=1,at=bar,cex=0.8,col="black")
+par(new=T)
+plot(bar,sdistatez$meandis,axes=F,xlab="",ylab=" ",col="red",type="o")
+axis(4,col="red",col.ticks="red",col.axis="red")
+```
+
+- From the following biaxial chart, in the 9 states with more than 200,000 confirmed infected people. If we set the social distance lager than 35 as the long social distance Here are 4 states follow patterns are shown: those with fewer infected people have a longer social distance, such as New York and New Jersey; the number of infected people is higher in states with shorter social distance, such as California, Florida and Texas.
+
+### Step9: Plot the mean values of social distance index of the 9 states on the map.
+```{r}
+library(usmap)
+sdistatem = as.data.frame(sdistatez)
+names(sdistatem)[2] <- "state"
+plot_usmap('states', data =sdistatem, values ='meandis')+
+scale_fill_continuous(low = "light blue", high = "dark blue", guide = FALSE)
+```
+
+- The states in grey color are those who have total confirmed cases lower than 200,000, which I did not calculate the mean values.
+- The states in blue color are those who have total confirmed cases over than 200,000, which I have calculated the mean values before. The dark blue indicates the higher mean of social distance index, the light blue indicates the lower mean of social distance index.
+
+### Step10: Find whether the variable of total confirmed cases and the variable of mean social distance are related. 
+
+```{r}
+meandisz = apply(sdi1[,3:51],1,mean)
+totalz = tot0928$`2020-09-28`
+cor(meandisz,totalz)
+```
+
+- The correlation coefficient is -0.097 which is very close to 0, so we can find that these two variables are not related.
+
+
+### Conclusions:
+
+1. Social distance is not an absolute influence on the number of people diagnosed.
+2. The range of social distance doesn't fluctuate much in these states.
+3. The total confirmed cases and the mean social distance are not related.
+4. Although this conclusion is surprising me, I think we still need to focus on keeping social distance, because New York and New Jersey are two states have high population density, but with quite low confirmed cases numbers, we can also see that the social distance indexes of these two states are the highest two numbers in the plot. Maybe keeping a social distance is more efficient in big cities than in rural areas. Therefore, as the states with the same high population density, California and Texas should keep social distance and see if that can slow down the spread of Covid-19.
+
